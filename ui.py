@@ -1,9 +1,10 @@
 import streamlit as st
 from pre_processing import process_user_input
 
+# Set up app UI config
 st.set_page_config(page_title="🛍️ Product Catalog Generator", layout="centered")
 
-# 🎨 Custom Styling
+# --- Inject Custom Styling ---
 st.markdown("""
     <style>
         .big-title {
@@ -30,26 +31,49 @@ st.markdown("""
             color: #555;
             margin-left: 1em;
         }
+        .product-list {
+            margin-top: 1em;
+            font-size: 1em;
+            color: #444;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# 🏷️ App Header
+# --- Header ---
 st.markdown('<div class="big-title">🛍️ AI-Powered Product Catalog Generator</div>', unsafe_allow_html=True)
-st.write("Enter your product list below. You can type in natural language (e.g., 'Nike shoes and Dove shampoo').")
+st.write("Type your product descriptions one at a time. Once done, click **Generate Catalog**.")
 
-# 📥 Text Input
-user_input = st.text_area("Product Input", placeholder="Type or paste your product list here...", height=100)
+# --- Session State Setup ---
+if 'product_inputs' not in st.session_state:
+    st.session_state.product_inputs = []
 
-# 🎙️ Voice Button Placeholder
-st.button("🎤 Use Voice Input (Coming Soon!)")
+# --- Product Input ---
+new_product = st.text_input("Enter a product or messy product sentence:", key="input_product")
 
-# 🧠 Generate Button
+# --- Add Button ---
+if st.button("➕ Add Product"):
+    if new_product.strip():
+        st.session_state.product_inputs.append(new_product.strip())
+        st.success(f"✅ Added: `{new_product.strip()}`")
+        # Optionally clear the input field (can't directly reset st.text_input)
+        st.rerun()
+    else:
+        st.warning("Please enter a valid product input before adding.")
+
+# --- Show Current Product List ---
+if st.session_state.product_inputs:
+    st.markdown("#### 🧾 Products Added:")
+    st.markdown("<ul class='product-list'>" + "".join(f"<li>{p}</li>" for p in st.session_state.product_inputs) + "</ul>", unsafe_allow_html=True)
+
+# --- Generate Catalog ---
 if st.button("✨ Generate Catalog"):
-    if user_input.strip():
-        with st.spinner("Processing your products..."):
-            results = process_user_input(user_input)
+    if st.session_state.product_inputs:
+        with st.spinner("Generating your product catalog..."):
+            combined_input = ". ".join(st.session_state.product_inputs)
+            results = process_user_input(combined_input)
 
         st.markdown("---")
+        st.markdown("### 📘 Generated Product Catalog:")
         for item in results:
             st.markdown(f"""
             <div class="product-box">
@@ -57,5 +81,8 @@ if st.button("✨ Generate Catalog"):
                 <div class="description-point">{item['description'].replace('-', '<br>-')}</div>
             </div>
             """, unsafe_allow_html=True)
+
+        # Reset for next use
+        st.session_state.product_inputs = []
     else:
-        st.warning("Please enter a product list first.")
+        st.warning("Please add at least one product before generating the catalog.")
