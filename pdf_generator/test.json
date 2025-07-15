@@ -1,0 +1,33 @@
+[{
+    "category name": "Electronics",
+            "products": [
+                {
+                    "product name": "Smartphone",
+                    "description": "A high-performance smartphone.",
+                    "image url": "cat.jpg",
+                    "features": ["Touchscreen", "Bluetooth", "Camera"],
+                    "price": "9999"
+                },
+                {
+                    "product name": "Headphones",
+                    "description": "Noise-cancelling wireless headphones.",
+                    "image url": "Southwest.webp",
+                    "features": ["Noise Cancellation", "Bluetooth 5.0"],
+                    "price": "2999"
+                },
+                {
+                    "product name": "Smartwatch",
+                    "description": "A sleek smartwatch with multiple features.",
+                    "image url": "Southwest.webp",
+                    "features": ["Heart Rate Monitor", "Step Tracker"],
+                    "price": "4999"
+                },
+                {
+                    "product name": "Tablet",
+                    "description": "Lightweight and powerful tablet device.",
+                    "image url": "Southwest.webp",
+                    "features": ["Wi-Fi", "HD Display"],
+                    "price": "7999"
+                }
+            ]
+        }]
