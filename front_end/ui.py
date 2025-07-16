@@ -1,5 +1,5 @@
 import streamlit as st
-from pre_processing import process_user_input
+from hackfinity_wreckers.backend_scripts.pre_processing import process_user_input
 
 st.set_page_config(page_title="🛍️ Product Catalog Generator", layout="centered")
 
