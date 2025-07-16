@@ -4,7 +4,7 @@ from langdetect import detect
 from deep_translator import GoogleTranslator
 
 # Initialize Cohere
-co = cohere.ClientV2("Fz8g3YpIHL4sN7bW0zAXXi03oS8Ek1RQYvSUZdaP")  # Replace with your actual API key
+co = cohere.ClientV2("Fz8g3YpIHL4sN7bW0zAXXi03oS8Ek1RQYvSUZdaP")  # Use your actual API key
 
 
 # 1. Detect language and translate to English (if needed)
@@ -19,15 +19,35 @@ def translate_to_english(text: str) -> str:
         return text
 
 
-# 2. Split input text into multiple product segments (heuristic approach)
-def split_products(text: str):
-    # Break by possible indicators of different items
-    product_lines = re.split(r"[.\n]|(?:\band\b)|(?:\bwith\b)|(?:\balso\b)|(?:,)|(?:\+)|(?:\/)", text)
-    cleaned = [p.strip() for p in product_lines if p.strip()]
-    return cleaned
+# 2. Ask Cohere to extract clean list of product names
+def extract_product_list(raw_text: str):
+    prompt = f"""
+You will be given a user-written messy product input text. Extract a clean list of **distinct product names** from it. 
+Each product should be written clearly without brand repetitions or joining multiple products into one.
+
+Input:
+\"\"\"
+{raw_text}
+\"\"\"
+
+Output format (return ONLY the list):
+- Product 1
+- Product 2
+- Product 3
+    """.strip()
+
+    res = co.chat(
+        model="command-a-03-2025",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    # Extract product list from AI response
+    text = "\n".join([msg.text for msg in res.message.content if msg.type == "text"])
+    products = re.findall(r"- (.+)", text)
+    return [p.strip() for p in products if p.strip()]
 
 
-# 3. Prompt generation for individual product
+# 3. Prompt generation for a single product
 def generate_prompt(product_details: str) -> str:
     return f"""
 You are creating a professional product catalog.
@@ -53,7 +73,7 @@ Return output in this format:
 """.strip()
 
 
-# 4. Extract only text responses
+# 4. Extract text response from Cohere
 def extract_description_from_response(res):
     return "\n".join([
         item.text for item in res.message.content 
@@ -61,43 +81,29 @@ def extract_description_from_response(res):
     ])
 
 
-# 5. Generate description via Cohere
+# 5. Generate detailed description for one product
 def generate_description(product_text: str):
     prompt = generate_prompt(product_text)
-
     res = co.chat(
         model="command-a-03-2025",
         messages=[{"role": "user", "content": prompt}]
     )
-
     return extract_description_from_response(res)
 
 
-# 6. Master function: process full user input
+# 6. Main pipeline: translate → extract product list → generate descriptions
 def process_user_input(raw_input: str):
     translated = translate_to_english(raw_input)
-    product_chunks = split_products(translated)
+    product_list = extract_product_list(translated)
 
     results = []
-    for chunk in product_chunks:
-        description = generate_description(chunk)
-        
-        # Extract the product name from the first 📦 line
+    for product in product_list:
+        description = generate_description(product)
         product_match = re.search(r"📦\s*(.+)", description)
-        product_name = product_match.group(1).strip() if product_match else chunk[:20]
-
+        product_name = product_match.group(1).strip() if product_match else product[:20]
         results.append({
             "product_name": product_name,
             "description": description
         })
 
     return results
-
-
-# 7. Example usage
-if __name__ == "__main__":
-    user_input = "dove shampoo kercheif addidas shoe rolex watch"
-    output = process_user_input(user_input)
-
-    for item in output:
-        print(f"\n📦 {item['product_name']}\n{item['description']}")
