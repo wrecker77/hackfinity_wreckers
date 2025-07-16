@@ -147,7 +147,9 @@ class GradientBorderPDF(FPDF):
                 self.cell(fw, line_height, feature, border=1, align="C", fill=True)
                 cur_x += fw + space
 
-def generate_pdf_from_json(json_data, output_path="products.pdf"):
+def generate_pdf_from_json(input_path, output_path="products.pdf"):
+    with open(input_path, "r", encoding="utf-8") as f:
+            json_data = json.load(f)
     pdf = GradientBorderPDF()
     pdf.set_auto_page_break(auto=False)
     product_height = pdf.h * 0.24
@@ -172,18 +174,3 @@ def generate_pdf_from_json(json_data, output_path="products.pdf"):
     pdf.output(output_path)
     print(f"✅ PDF generated: {output_path}")
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python script.py <input.json>")
-        sys.exit(1)
-
-    input_path = sys.argv[1]
-
-    try:
-        with open(input_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception as e:
-        print(f"❌ Failed to load JSON: {e}")
-        sys.exit(1)
-
-    generate_pdf_from_json(data)

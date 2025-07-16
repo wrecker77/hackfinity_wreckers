@@ -5,7 +5,7 @@ from langdetect import detect
 from deep_translator import GoogleTranslator
 
 # Initialize Cohere
-co = cohere.ClientV2("Fz8g3YpIHL4sN7bW0zAXXi03oS8Ek1RQYvSUZdaP")  # Use your actual API key
+co = cohere.ClientV2("HVmFlPGjqw30N7g8UZGybmhKwoxOvdj3JO7zZKF9")  # Use your actual API key
 
 def refine_product_json(raw_json_str: dict) -> dict:
     """
