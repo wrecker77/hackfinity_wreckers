@@ -51,6 +51,28 @@ class GradientBorderPDF(FPDF):
         self.cell(self.w - 20, 10, name, align="C")
         return 10 + cat_height + 5
 
+    def draw_wrapped_text(self, x, y, w, h_limit, text, font_size, border=1):
+        self.set_font("Arial", "", font_size)
+        line_height = font_size + 1
+        max_lines = int(h_limit / line_height)
+        lines = []
+        words = text.split()
+        line = ""
+        for word in words:
+            if self.get_string_width(line + word + " ") > w:
+                lines.append(line.strip())
+                line = word + " "
+                if len(lines) >= max_lines:
+                    break
+            else:
+                line += word + " "
+        if len(lines) < max_lines:
+            lines.append(line.strip())
+        for i, l in enumerate(lines[:max_lines]):
+            self.set_xy(x, y + i * line_height)
+            self.cell(w, line_height, l, border=border)
+        return len(lines) * line_height
+
     def draw_product_cell(self, product, y_offset):
         cell_width = self.w * 0.9
         cell_height = self.h * 0.24
@@ -59,25 +81,29 @@ class GradientBorderPDF(FPDF):
         self.set_draw_color(160, 160, 160)
         self.rect(x, y, cell_width, cell_height)
 
-        image_section_w = cell_width * 0.4
+        image_section_w = cell_width * 0.35
         text_section_w = cell_width * 0.6
         spacing = 3
+        tx = x + image_section_w + spacing
+        ty = y + 6
+        label_w = text_section_w * 0.3
+        value_w = text_section_w * 0.7 - spacing
+        max_y = y + cell_height - 6
 
+        # Image
         if product.get("image url"):
             try:
-                img_w = image_section_w - 10
-                img_h = cell_height - 10
-                img_x = x + 5
+                img_w = image_section_w - 8
+                img_h = cell_height - 12
+                img_x = x + 4
                 img_y = y + (cell_height - img_h) / 2
                 self.image(product["image url"], x=img_x, y=img_y, w=img_w, h=img_h)
             except:
                 pass
 
-        tx = x + image_section_w + 5
-        ty = y + 6
-        label_w = text_section_w * 0.3
-        value_w = text_section_w * 0.7 - spacing
-
+        # Product Fields
+        self.set_font("Arial", "", 9)
+        line_spacing = 3
         fields = [
             ("Product Name", product.get("product name", "")),
             ("Description", product.get("description", "")),
@@ -85,70 +111,63 @@ class GradientBorderPDF(FPDF):
         ]
 
         for label, value in fields:
-            if ty + 6 > y + cell_height - 8:
+            if ty + 10 > max_y:
                 break
             self.set_xy(tx, ty)
             self.set_font("Arial", "B", 9)
-            self.set_fill_color(245, 245, 245)
-            self.set_draw_color(180, 180, 180)
-            self.cell(label_w, 6, label, border=1, align="C", fill=True)
-            self.set_font("Arial", "", 9)
-            self.set_x(tx + label_w + spacing)
-            self.cell(value_w, 6, value, border=1, ln=1, align="C", fill=False)
-            ty += 8
+            self.cell(label_w, 5, label, border=1, align="L")
+            value_x = tx + label_w + spacing
+            value_y = ty
+            self.set_font("Arial", "", 8)
+            rendered_h = self.draw_wrapped_text(value_x, value_y, value_w, max_y - ty, value, 8, border=1)
+            ty += max(rendered_h, 5) + line_spacing
 
+        # Features
         features = product.get("features", [])
-        if features and ty + 6 < y + cell_height - 8:
+        if features and ty + 6 < max_y:
             self.set_xy(tx, ty)
             self.set_font("Arial", "B", 9)
-            self.set_fill_color(245, 245, 245)
-            self.cell(label_w, 6, "Features", border=1, align="C", fill=True)
-
-            max_width = text_section_w * 0.7 - spacing
+            self.cell(label_w, 5, "Features", border=1, align="L")
+            self.set_font("Arial", "", 7)
             cur_x = tx + label_w + spacing
             cur_y = ty
+            line_height = 5
             space = 2
-            line_height = 6
-            self.set_font("Arial", "", 8)
 
             for feature in features:
                 fw = self.get_string_width(feature) + 6
                 if cur_x + fw > tx + text_section_w:
                     cur_x = tx + label_w + spacing
                     cur_y += line_height + space
-                if cur_y + line_height > y + cell_height - 6:
+                if cur_y + line_height > max_y:
                     break
+                self.set_fill_color(220, 240, 255)
+                self.set_draw_color(100, 180, 255)
                 self.set_xy(cur_x, cur_y)
-                self.set_fill_color(200, 240, 255)
-                self.set_draw_color(150, 200, 230)
-                self.cell(fw, line_height, feature, border=1, ln=0, align="C", fill=True)
+                self.cell(fw, line_height, feature, border=1, align="C", fill=True)
                 cur_x += fw + space
 
 def generate_pdf_from_json(json_data, output_path="products.pdf"):
     pdf = GradientBorderPDF()
-    pdf.set_auto_page_break(auto=True, margin=10)
+    pdf.set_auto_page_break(auto=False)
+    product_height = pdf.h * 0.24
+    product_gap = 5
+    top_margin = 10
 
     for category in json_data:
         if not isinstance(category, dict):
-            continue  # Skip if category is malformed
+            continue
 
         products = category.get("products", [])
         cat_name = category.get("category name", "Unnamed Category")
-        category_written = False
-        first_product_y = 0
-
-        product_height = pdf.h * 0.24
-        product_gap = 5
-
-        for i, product in enumerate(products):
-            if i % 3 == 0:
+        current_y = 0
+        for product in products:
+            if current_y == 0 or current_y + product_height > pdf.h - 10:
                 pdf.add_page()
-                if not category_written:
-                    first_product_y = pdf.draw_category_container(cat_name)
-                    category_written = True
+                current_y = pdf.draw_category_container(cat_name)
 
-            y_offset = first_product_y + (i % 3) * (product_height + product_gap)
-            pdf.draw_product_cell(product, y_offset)
+            pdf.draw_product_cell(product, current_y)
+            current_y += product_height + product_gap
 
     pdf.output(output_path)
     print(f"✅ PDF generated: {output_path}")
